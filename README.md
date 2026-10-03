@@ -188,17 +188,6 @@ $ mvn clean package
 $ mvn spring-boot:run
 ```
 
-La aplicación queda en `http://localhost:8080`. Pruebas rápidas:
-
-```
-# Registrar un hallazgo
-curl -X POST http://localhost:8080/api/hallazgos -H "Content-Type: application/json" \
-  -d '{"titulo":"Contraseñas por defecto en servidor de pruebas","descripcion":"El servidor QA usa credenciales por defecto","areaResponsable":"Infraestructura","severidad":"ALTA","fechaDeteccion":"2026-08-01"}'
-
-# Dashboard e historial
-curl http://localhost:8080/api/hallazgos/dashboard
-curl http://localhost:8080/api/hallazgos/{id}/historial
-```
 
 ## Herramientas utilizadas
 

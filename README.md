@@ -231,7 +231,7 @@ La Parte 1 mostró que Clean Architecture mantiene las reglas de negocio (la má
 
 ### Iniciar remediación
 
-![Iniciar](./capturas/inicar.jpg)
+![Iniciar](./capturas/iniciar.jpg)
 
 ### Cerrar el hallazgo
 

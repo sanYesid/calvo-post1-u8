@@ -19,36 +19,72 @@ El proyecto organiza los cuatro círculos concéntricos de Clean Architecture:
 
 La dependencia del código siempre apunta hacia adentro, hacia `domain/`. Los paquetes `domain/` y `usecase/` no importan `org.springframework` ni `jakarta.persistence`: la entidad JPA vive solo en `adapter/out/persistence/` y el adaptador traduce campo a campo entre ella y el objeto de dominio. Gracias a esto, `HallazgoAuditoria` puede instanciarse y probarse con JUnit sin `@SpringBootTest`.
 
+### Pruebas  
+HallazgoAuditoriaTest verifica con JUnit 5, sin @SpringBootTest, las transiciones válidas, el rechazo de cierre sin plan, el rechazo de reapertura desde ABIERTO, el ciclo completo y la rehidratación del agregado (reconstituir). Se ejecuta con mvn test.
+
 ### Estructura de paquetes
 
 ```
-auditoria-hallazgos/
+calvo-post1-u8/
 ├── pom.xml
-└── src/main/java/com/example/auditoria/
-    ├── domain/
-    │   ├── entity/HallazgoAuditoria.java          ← Aggregate Root
-    │   └── valueobject/
-    │       ├── HallazgoId.java
-    │       ├── Severidad.java                     ← enum simple
-    │       ├── EstadoHallazgo.java                ← enum con máquina de estados
-    │       ├── PlanRemediacion.java               ← Value Object inmutable
-    │       └── TransicionInvalidaException.java
-    ├── usecase/
-    │   ├── *UseCase.java                          ← interfaces de entrada
-    │   ├── port/                                  ← puertos de salida y vistas
-    │   │   ├── HallazgoRepositoryPort.java
-    │   │   ├── HistorialAuditoriaPort.java
-    │   │   ├── ConteoCategoria.java / PromedioCategoria.java
-    │   │   ├── DashboardAuditoriaView.java
-    │   │   └── CambioEstadoView.java
-    │   └── impl/*Service.java
-    ├── adapter/
-    │   ├── in/web/ (HallazgoController, dto/)
-    │   └── out/persistence/
-    │       ├── HallazgoJpaEntity / HallazgoJpaRepository / HallazgoRepositoryAdapter
-    │       └── HistorialCambioEstado* / HistorialAuditoriaAdapter
-    ├── config/AuditoriaConfiguration.java
-    └── AuditoriaHallazgosApplication.java
+├── mvnw / mvnw.cmd
+├── README.md
+├── docs/                                       ← capturas de los endpoints
+└── src/main/
+    ├── resources/application.properties
+    └── java/com/example/auditoria/
+        ├── AuditoriaHallazgosApplication.java
+        ├── domain/
+        │   ├── entity/
+        │   │   └── HallazgoAuditoria.java              ← Aggregate Root
+        │   └── valueobject/
+        │       ├── HallazgoId.java
+        │       ├── Severidad.java                      ← enum simple
+        │       ├── EstadoHallazgo.java                 ← enum con máquina de estados
+        │       ├── PlanRemediacion.java                ← Value Object inmutable
+        │       └── TransicionInvalidaException.java
+        ├── usecase/
+        │   ├── RegistrarHallazgoUseCase.java
+        │   ├── IniciarRemediacionUseCase.java
+        │   ├── CerrarHallazgoUseCase.java
+        │   ├── ReabrirHallazgoUseCase.java
+        │   ├── ConsultarHallazgoUseCase.java
+        │   ├── ObtenerDashboardAuditoriaUseCase.java
+        │   ├── ConsultarHistorialUseCase.java
+        │   ├── HallazgoNotFoundException.java
+        │   ├── port/
+        │   │   ├── HallazgoRepositoryPort.java         ← extendido en la Parte 2
+        │   │   ├── HistorialAuditoriaPort.java
+        │   │   ├── ConteoCategoria.java
+        │   │   ├── PromedioCategoria.java
+        │   │   ├── DashboardAuditoriaView.java
+        │   │   └── CambioEstadoView.java
+        │   └── impl/
+        │       ├── RegistrarHallazgoService.java
+        │       ├── IniciarRemediacionService.java
+        │       ├── CerrarHallazgoService.java
+        │       ├── ReabrirHallazgoService.java
+        │       ├── ConsultarHallazgoService.java
+        │       ├── ObtenerDashboardAuditoriaService.java
+        │       └── ConsultarHistorialService.java
+        ├── adapter/
+        │   ├── in/web/
+        │   │   ├── HallazgoController.java
+        │   │   ├── GlobalExceptionHandler.java         ← mapea excepciones a 400/404
+        │   │   └── dto/
+        │   │       ├── RegistrarHallazgoRequest.java
+        │   │       ├── IniciarRemediacionRequest.java
+        │   │       ├── ReabrirRequest.java
+        │   │       └── HallazgoResponse.java
+        │   └── out/persistence/
+        │       ├── HallazgoJpaEntity.java
+        │       ├── HallazgoJpaRepository.java          ← extendido en la Parte 2
+        │       ├── HallazgoRepositoryAdapter.java
+        │       ├── HistorialCambioEstadoJpaEntity.java
+        │       ├── HistorialCambioEstadoJpaRepository.java
+        │       └── HistorialAuditoriaAdapter.java
+        └── config/
+            └── AuditoriaConfiguration.java             ← wiring explícito
 ```
 
 ### Endpoints
@@ -64,10 +100,40 @@ auditoria-hallazgos/
 | GET | `/api/hallazgos/{id}/historial` | Cambios de estado en orden cronológico |
 
 
+
 ## Parte 2 — Análisis costo-beneficio de CQRS/Event Sourcing
 
 **Contexto.** El comité de auditoría plantea dos requisitos: (1) un dashboard consolidado antes de cada reunión mensual (hallazgos por severidad, por estado y promedio de días entre detección y cierre por área) y (2) trazabilidad legal de cada cambio de estado (quién, cuándo, de qué estado a cuál), sin alteración retroactiva. Son el tipo de requisitos con los que la guía introduce CQRS (lecturas con forma distinta a las escrituras) y Event Sourcing (historial completo para auditoría). Antes de escribir código, se aplicaron los criterios de la Sección 7 (y la 4.4 y 5.5) de la guía a la escala real del proyecto.
 
+### 1. Escala y carga
+
+CQRS se justifica cuando lecturas y escrituras tienen cargas tan distintas que necesitan escalar de forma independiente (Sección 4.4). Aquí no ocurre: el sistema es un laboratorio académico con un único desarrollador, cero usuarios concurrentes reales y una base H2 con un volumen de datos de decenas de hallazgos. Las escrituras son transiciones de estado ocasionales y las lecturas son consultas de un comité que se reúne una vez al mes. No hay asimetría medible entre ambas, y por tanto no existe ningún cuello de botella que una infraestructura separada de lectura y escritura venga a resolver. Montar dos stacks para una carga que un solo repositorio absorbe sin esfuerzo sería pagar un costo permanente (más código, más configuración, más puntos de fallo) sin recibir ningún beneficio operativo.
+
+### 2. Complejidad de las consultas
+
+El dashboard pide tres agregaciones: `COUNT ... GROUP BY severidad`, `COUNT ... GROUP BY estado` y `AVG(días entre detección y cierre) ... GROUP BY área` filtrando los hallazgos cerrados. Las tres se resuelven con una consulta JPQL con `GROUP BY` sobre el mismo esquema relacional, ya que `fechaDeteccion`, `fechaCierre`, `severidad`, `estado` y `areaResponsable` están todos en `HallazgoJpaEntity`; el dominio ya registraba `fechaCierre` desde la Parte 1, por lo que no requirió cambios. Un modelo de lectura con tecnología o esquema distinto (otra base de datos, vistas desnormalizadas) solo se justificaría si estas consultas fueran lentas, necesitaran joins entre múltiples agregados o requirieran un índice de búsqueda especializado. Ninguna de esas condiciones se cumple, así que se extendió el puerto existente `HallazgoRepositoryPort` con tres métodos y se implementaron con *interface projections* de Spring Data JPA sobre el mismo `HallazgoJpaRepository`.
+
+### 3. Consistencia
+
+El criterio pregunta si el comité necesita el dashboard en tiempo real o si tolera datos ligeramente desactualizados. En la práctica, un reporte que se consulta antes de una reunión mensual refleja "el estado al momento de la consulta", como cualquier reporte generado bajo demanda. Con la extensión liviana, el dashboard lee directamente la fuente de verdad y es **inmediatamente consistente**: no hay proyecciones, colas ni sincronización. Un CQRS completo con modelos separados introduciría justamente lo contrario: consistencia eventual, con la necesidad de manejar retrasos y fallos de sincronización entre el lado de escritura y el de lectura. Ese costo no compra nada aquí, porque nadie lo necesita y además empeoraría la garantía que hoy se obtiene gratis.
+
+### 4. Naturaleza de la trazabilidad exigida
+
+La pregunta decisiva es si Cumplimiento necesita **reconstruir el estado completo** del hallazgo reproduciendo eventos uno por uno (Event Sourcing, Sección 5.5) o si le basta una **bitácora cronológica** de cambios. El requisito dice textualmente que debe poder reconstruirse "cada cambio de estado: quién lo originó, cuándo y de qué estado a qué estado". Eso es una secuencia de transiciones, no una necesidad de rehidratar el agregado ni de consultar estados intermedios completos. Una tabla append-only (`historial_cambios_estado`) cubre el requisito: solo se inserta, nunca se actualiza ni se elimina (no existe ningún método de actualización o borrado en su puerto ni en su adaptador) y se escribe en la misma transacción que la transición. El Event Sourcing completo aportaría además replay de estados, proyecciones nuevas desde eventos pasados y *time travel*, capacidades que nadie ha pedido, a cambio de reescribir un agregado que ya funciona.
+
+### 5. Señales de sobre-ingeniería (Sección 7.2)
+
+Se evaluaron una a una las cinco señales de la guía:
+
+- **«El 80% del código son mappers y adaptadores, con menos del 20% de lógica de negocio».** Ya hay una traducción campo a campo entre `HallazgoJpaEntity` y `HallazgoAuditoria`. CQRS completo duplicaría esa capa (modelo de comando, modelo de consulta, sincronización) y Event Sourcing sumaría serialización y deserialización de eventos, empujando al proyecto hacia esa proporción.
+- **«El equipo pasa más tiempo explicando la arquitectura que entregando funcionalidades».** El equipo es una persona, sin experiencia previa en Event Sourcing; la curva de aprendizaje competiría directamente con la entrega de funcionalidad.
+- **«Las pruebas del dominio son más difíciles con la nueva arquitectura».** Hoy `HallazgoAuditoria` se prueba con JUnit puro. Con Event Sourcing habría que probar la aplicación de eventos y la reconstrucción del estado, y la prueba dejaría de ser una simple llamada a `cerrar()`.
+- **«No existe un experto de negocio para definir el lenguaje ubicuo».** El comité y Cumplimiento son ficticios en este laboratorio, así que no hay con quién modelar eventos de dominio con la calidad que exige Event Sourcing; los eventos mal modelados son costosos de corregir porque son inmutables.
+- **«El sistema no tiene requerimientos de auditoría, ni múltiples modelos de lectura, ni escala diferencial».** Esta es la única señal que **no** se cumple por completo: el sistema sí tiene un requisito de auditoría real. Pero ese requisito es de bitácora, no de reconstrucción de estado, y no hay múltiples modelos de lectura ni escala diferencial. Por eso apunta a una solución puntual y no al patrón completo.
+
+### Conclusión del análisis
+
+**No se justifica adoptar CQRS ni Event Sourcing completos; se implementó la extensión liviana.** Escala, complejidad de consultas, consistencia y señales de sobre-ingeniería apuntan en la misma dirección, y el único criterio con peso real (la trazabilidad) queda cubierto por una bitácora append-only. La solución elegida consiste en (a) tres consultas agregadas añadidas al mismo `HallazgoRepositoryPort`/`HallazgoJpaRepository`, y (b) una tabla `historial_cambios_estado` que coexiste con el estado actual. Esto satisface ambos requisitos con el mínimo de complejidad necesaria y mantiene intacta la pureza de los círculos de Clean Architecture.
 
 ---
 
@@ -111,7 +177,7 @@ Los dos requisitos nuevos se cubren con extensiones puntuales que respetan los c
 4. **Sin experto de negocio:** no hay con quién modelar los eventos de dominio, y los eventos mal definidos son difíciles de corregir porque son inmutables.
 5. **Requerimientos de auditoría, modelos de lectura y escala:** sí hay un requisito de auditoría, pero es acotado (mostrar la secuencia de cambios), no hay múltiples modelos de lectura ni escala diferencial.
 
-La bitácora solo necesita mostrar la secuencia de cambios (estado anterior, estado nuevo, motivo y fecha); no necesita ser la fuente de verdad. Es append-only por diseño (`registrar` solo inserta y no existe operación de actualización ni de borrado), y al escribirse en la misma transacción que la transición, nunca hay cambio de estado sin registro ni registro de un cambio que no ocurrió. Cada transición exitosa (`iniciar-remediacion`, `cerrar`, `reabrir`) inserta exactamente un registro.
+La bitácora solo necesita mostrar la secuencia de cambios (estado anterior, estado nuevo, motivo y fecha); no necesita ser la fuente de verdad. Es append-only por diseño (`registrar` solo inserta y no existe operación de actualización ni de borrado). Cada registro guarda estado anterior, estado nuevo, motivo, usuario que originó el cambio y fecha. El límite transaccional se declara en el adapter (@Transactional en los @PatchMapping de HallazgoController) para mantener usecase/ libre de Spring: el estado y su registro de auditoría se confirman o se revierten juntos. El usuario se toma del header X-Usuario (por defecto sistema); es una simplificación académica, ya que un sistema real lo obtendría del principal autenticado.
 
 ---
 
@@ -122,6 +188,16 @@ $ mvn clean package
 $ mvn spring-boot:run
 ```
 
+La aplicación queda en `http://localhost:8080`. Pruebas rápidas:
+
+```
+# Registrar un hallazgo
+curl -X POST http://localhost:8080/api/hallazgos -H "Content-Type: application/json" \
+  -d '{"titulo":"Contraseñas por defecto en servidor de pruebas","descripcion":"El servidor QA usa credenciales por defecto","areaResponsable":"Infraestructura","severidad":"ALTA","fechaDeteccion":"2026-08-01"}'
+
+# Dashboard e historial
+curl http://localhost:8080/api/hallazgos/dashboard
+curl http://localhost:8080/api/hallazgos/{id}/historial
 ```
 
 ## Herramientas utilizadas
@@ -130,4 +206,54 @@ $ mvn spring-boot:run
 - Apache Maven, Postman/curl, Git, GitHub
 
 ## Conclusiones
+
 La Parte 1 mostró que Clean Architecture mantiene las reglas de negocio (la máquina de estados y las invariantes del plan de remediación) aisladas de Spring y JPA, lo que permite probarlas sin framework y cambiar la persistencia sin tocar el dominio. La Parte 2 mostró que un requisito que *parece* pedir CQRS o Event Sourcing no necesariamente los justifica: aplicando los criterios de escala, complejidad de consultas, consistencia, trazabilidad y señales de sobre-ingeniería, bastaron consultas agregadas sobre el mismo repositorio y una bitácora append-only. Reconsideraría esta decisión si el sistema creciera hasta tener muchos usuarios concurrentes con una asimetría clara entre lecturas y escrituras, si el dashboard se volviera lento sobre grandes volúmenes o necesitara múltiples modelos de lectura distintos, si Cumplimiento exigiera reconstruir estados pasados completos o garantías de inalterabilidad más fuertes que una tabla append-only (por ejemplo, registros encadenados con hash), o si existieran un experto de negocio y un equipo con experiencia para modelar eventos. Mientras esas condiciones no existan, la solución más simple que cumple los requisitos es también la más correcta.
+
+## Capturas de pantalla
+
+### Petición en PowerShell especificando UTF-8
+![Peticion](./capturas/peticion.jpg)
+
+### Intentar Cerrar SIN remediación (Prueba de Invariante de Dominio - Espera error HTTP 400)
+
+![Cerrar](./capturas/cerrar.jpg)
+
+### Iniciar Remediación (PATCH /api/hallazgos/{id}/iniciar-remediacion)
+
+![Cerrar](./capturas/remediacion.jpg)
+
+### Cerrar Hallazgo (PATCH /api/hallazgos/{id}/cerrar)
+
+![Cerrar](./capturas/hallazgo.jpg)
+
+### Reabrir Hallazgo (PATCH /api/hallazgos/{id}/reabrir)
+
+![Reabrir](./capturas/reabrir.jpg)
+
+### Consultar todos los hallazgos (GET /api/hallazgos)
+
+![Consultar](./capturas/consultar.jpg)
+
+## Parte 2
+
+### Registrar un hallazgo
+
+![Registra](./capturas/registrar.jpg)
+
+### Iniciar remediación
+
+![Iniciar](./capturas/inicar.jpg)
+
+### Cerrar el hallazgo
+
+![cierre_hallazgo](./capturas/cierre-hallazgo.jpg)
+
+### Consultar el Dashboard
+
+![consultar-dash](./capturas/consultar-dash.jpg)
+
+### Consultar el Historial Cronológico
+![consultar-historial](./capturas/consultar-historial.jpg)
+
+
+

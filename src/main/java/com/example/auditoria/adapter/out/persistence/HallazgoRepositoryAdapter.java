@@ -4,8 +4,9 @@ import com.example.auditoria.domain.entity.HallazgoAuditoria;
 import com.example.auditoria.domain.valueobject.EstadoHallazgo;
 import com.example.auditoria.domain.valueobject.HallazgoId;
 import com.example.auditoria.domain.valueobject.PlanRemediacion;
+import com.example.auditoria.usecase.port.ConteoCategoria;
 import com.example.auditoria.usecase.port.HallazgoRepositoryPort;
-
+import com.example.auditoria.usecase.port.PromedioCategoria;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -36,29 +37,54 @@ public class HallazgoRepositoryAdapter implements HallazgoRepositoryPort {
         return jpa.findAll().stream().map(this::toDomain).toList();
     }
 
+    // --- Métodos añadidos en la Parte 2 ---
+
+    @Override
+    public List<ConteoCategoria> contarPorSeveridad() {
+        return jpa.contarPorSeveridad().stream()
+                .map(p -> new ConteoCategoria(p.getCategoria(), p.getTotal()))
+                .toList();
+    }
+
+    @Override
+    public List<ConteoCategoria> contarPorEstado() {
+        return jpa.contarPorEstado().stream()
+                .map(p -> new ConteoCategoria(p.getCategoria(), p.getTotal()))
+                .toList();
+    }
+
+    @Override
+    public List<PromedioCategoria> promedioDiasCierrePorArea() {
+        return jpa.promedioDiasCierrePorArea().stream()
+                .map(p -> new PromedioCategoria(p.getCategoria(), p.getPromedio() != null ? p.getPromedio() : 0.0))
+                .toList();
+    }
+
+    // --- Métodos de mapeo Dominio <-> Entidad JPA ---
+
     private HallazgoAuditoria toDomain(HallazgoJpaEntity e) {
         HallazgoAuditoria h = new HallazgoAuditoria(
-            new HallazgoId(UUID.fromString(e.getId())),
-            e.getTitulo(),
-            e.getDescripcion(),
-            e.getAreaResponsable(),
-            e.getSeveridad(),
-            e.getFechaDeteccion()
+                new HallazgoId(UUID.fromString(e.getId())),
+                e.getTitulo(),
+                e.getDescripcion(),
+                e.getAreaResponsable(),
+                e.getSeveridad(),
+                e.getFechaDeteccion()
         );
 
         if (e.getPlanResponsable() != null) {
             h.iniciarRemediacion(new PlanRemediacion(
-                e.getPlanResponsable(), e.getPlanFechaLimite(), e.getPlanNotas()
+                    e.getPlanResponsable(),
+                    e.getPlanFechaLimite(),
+                    e.getPlanNotas()
             ));
         }
 
         if (e.getEstado() == EstadoHallazgo.CERRADO) {
             h.cerrar();
-        } else if (e.getEstado() == EstadoHallazgo.REABIERTO) {
-            if (e.getEstado() != EstadoHallazgo.EN_REMEDIACION) {
-                // Reconstruir el estado para lectura exacta
-            }
-            h.cerrar();
+        }
+
+        if (e.getEstado() == EstadoHallazgo.REABIERTO) {
             h.reabrir();
         }
 

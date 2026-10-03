@@ -25,11 +25,11 @@ HallazgoAuditoriaTest verifica con JUnit 5, sin @SpringBootTest, las transicione
 ### Estructura de paquetes
 
 ```
-calvo-post1-u8/
+auditoria-hallazgos/
 ├── pom.xml
 ├── mvnw / mvnw.cmd
 ├── README.md
-├── docs/                                       ← capturas de los endpoints
+├── capturas/                                       ← capturas de los endpoints
 └── src/main/
     ├── resources/application.properties
     └── java/com/example/auditoria/

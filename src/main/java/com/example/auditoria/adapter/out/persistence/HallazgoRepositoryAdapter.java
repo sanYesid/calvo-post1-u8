@@ -63,32 +63,21 @@ public class HallazgoRepositoryAdapter implements HallazgoRepositoryPort {
     // --- Métodos de mapeo Dominio <-> Entidad JPA ---
 
     private HallazgoAuditoria toDomain(HallazgoJpaEntity e) {
-        HallazgoAuditoria h = new HallazgoAuditoria(
+        PlanRemediacion plan = e.getPlanResponsable() != null
+                ? new PlanRemediacion(e.getPlanResponsable(), e.getPlanFechaLimite(), e.getPlanNotas())
+                : null;
+
+        return HallazgoAuditoria.reconstituir(
                 new HallazgoId(UUID.fromString(e.getId())),
                 e.getTitulo(),
                 e.getDescripcion(),
                 e.getAreaResponsable(),
                 e.getSeveridad(),
-                e.getFechaDeteccion()
+                e.getFechaDeteccion(),
+                e.getEstado(),
+                plan,
+                e.getFechaCierre()
         );
-
-        if (e.getPlanResponsable() != null) {
-            h.iniciarRemediacion(new PlanRemediacion(
-                    e.getPlanResponsable(),
-                    e.getPlanFechaLimite(),
-                    e.getPlanNotas()
-            ));
-        }
-
-        if (e.getEstado() == EstadoHallazgo.CERRADO) {
-            h.cerrar();
-        }
-
-        if (e.getEstado() == EstadoHallazgo.REABIERTO) {
-            h.reabrir();
-        }
-
-        return h;
     }
 
     private HallazgoJpaEntity toEntity(HallazgoAuditoria h) {

@@ -38,6 +38,21 @@ public class HallazgoAuditoria {
         this.estado = EstadoHallazgo.ABIERTO;
     }
 
+    public static HallazgoAuditoria reconstituir(HallazgoId id, String titulo, String descripcion,
+                                                String areaResponsable, Severidad severidad,
+                                                LocalDate fechaDeteccion, EstadoHallazgo estado,
+                                                PlanRemediacion planRemediacion, LocalDate fechaCierre) {
+        Objects.requireNonNull(estado, "El estado es obligatorio");
+        if (estado != EstadoHallazgo.ABIERTO && planRemediacion == null) {
+            throw new IllegalStateException("Un hallazgo en estado " + estado + " debe tener plan de remediación");
+        }
+        HallazgoAuditoria h = new HallazgoAuditoria(id, titulo, descripcion, areaResponsable, severidad, fechaDeteccion);
+        h.estado = estado;
+        h.planRemediacion = planRemediacion;
+        h.fechaCierre = fechaCierre;
+        return h;
+    }
+
     public EstadoHallazgo iniciarRemediacion(PlanRemediacion plan) {
         Objects.requireNonNull(plan, "El plan de remediacion es obligatorio");
         EstadoHallazgo anterior = transicionar(EstadoHallazgo.EN_REMEDIACION);

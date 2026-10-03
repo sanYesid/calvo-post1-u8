@@ -19,25 +19,27 @@ public class HistorialAuditoriaAdapter implements HistorialAuditoriaPort {
     }
 
     @Override
-    public void registrar(HallazgoId hallazgoId, EstadoHallazgo anterior, EstadoHallazgo nuevo, String motivo) {
-        HistorialCambioEstadoJpaEntity e = new HistorialCambioEstadoJpaEntity();
-        e.setHallazgoId(hallazgoId.toString());
-        e.setEstadoAnterior(anterior);
-        e.setEstadoNuevo(nuevo);
-        e.setMotivo(motivo);
-        e.setFecha(LocalDateTime.now());
-        jpa.save(e); // Registro append-only: inmutable
-    }
+public void registrar(HallazgoId hallazgoId, EstadoHallazgo anterior, EstadoHallazgo nuevo, String motivo, String usuario) {
+    HistorialCambioEstadoJpaEntity e = new HistorialCambioEstadoJpaEntity();
+    e.setHallazgoId(hallazgoId.toString());
+    e.setEstadoAnterior(anterior);
+    e.setEstadoNuevo(nuevo);
+    e.setMotivo(motivo);
+    e.setUsuario(usuario);
+    e.setFecha(LocalDateTime.now());
+    jpa.save(e);
+}
 
-    @Override
-    public List<CambioEstadoView> listarPorHallazgo(HallazgoId hallazgoId) {
-        return jpa.findByHallazgoIdOrderByFechaAsc(hallazgoId.toString()).stream()
-                .map(e -> new CambioEstadoView(
-                        e.getEstadoAnterior() != null ? e.getEstadoAnterior().toString() : null,
-                        e.getEstadoNuevo() != null ? e.getEstadoNuevo().toString() : null,
-                        e.getMotivo(),
-                        e.getFecha()
-                ))
-                .toList();
-    }
+@Override
+public List<CambioEstadoView> listarPorHallazgo(HallazgoId hallazgoId) {
+    return jpa.findByHallazgoIdOrderByFechaAsc(hallazgoId.toString()).stream()
+            .map(e -> new CambioEstadoView(
+                    e.getEstadoAnterior() != null ? e.getEstadoAnterior().toString() : null,
+                    e.getEstadoNuevo() != null ? e.getEstadoNuevo().toString() : null,
+                    e.getMotivo(),
+                    e.getUsuario(),
+                    e.getFecha()
+            ))
+            .toList();
+}
 }

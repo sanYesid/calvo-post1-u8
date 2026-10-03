@@ -19,12 +19,12 @@ public class ReabrirHallazgoService implements ReabrirHallazgoUseCase {
     }
 
     @Override
-    public void ejecutar(HallazgoId id, String motivo) {
-        HallazgoAuditoria hallazgo = repo.buscarPorId(id)
-                .orElseThrow(() -> new HallazgoNotFoundException(id));
+public void ejecutar(HallazgoId id, String motivo, String usuario) {
+    HallazgoAuditoria hallazgo = repo.buscarPorId(id)
+            .orElseThrow(() -> new HallazgoNotFoundException(id));
 
-        EstadoHallazgo anterior = hallazgo.reabrir();
-        repo.guardar(hallazgo);
-        historial.registrar(id, anterior, EstadoHallazgo.REABIERTO, motivo != null ? motivo : "Reapertura de hallazgo");
-    }
+    EstadoHallazgo anterior = hallazgo.reabrir();
+    repo.guardar(hallazgo);
+    historial.registrar(id, anterior, EstadoHallazgo.REABIERTO, motivo != null ? motivo : "Reapertura de hallazgo", usuario);
+}
 }

@@ -8,6 +8,12 @@ import java.time.LocalDateTime;
 @Table(name = "historial_cambios_estado")
 public class HistorialCambioEstadoJpaEntity {
 
+    @Column(nullable = false, updatable = false)
+    private String usuario;
+
+    public String getUsuario() { return usuario; }
+    public void setUsuario(String usuario) { this.usuario = usuario; }
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

@@ -19,12 +19,12 @@ public class CerrarHallazgoService implements CerrarHallazgoUseCase {
     }
 
     @Override
-    public void ejecutar(HallazgoId id) {
-        HallazgoAuditoria hallazgo = repo.buscarPorId(id)
-                .orElseThrow(() -> new HallazgoNotFoundException(id));
+public void ejecutar(HallazgoId id, String usuario) {
+    HallazgoAuditoria hallazgo = repo.buscarPorId(id)
+            .orElseThrow(() -> new HallazgoNotFoundException(id));
 
-        EstadoHallazgo anterior = hallazgo.cerrar();
-        repo.guardar(hallazgo);
-        historial.registrar(id, anterior, EstadoHallazgo.CERRADO, "Cierre de remediación");
-    }
+    EstadoHallazgo anterior = hallazgo.cerrar();
+    repo.guardar(hallazgo);
+    historial.registrar(id, anterior, EstadoHallazgo.CERRADO, "Cierre de remediación", usuario);
+}
 }

@@ -6,5 +6,6 @@ public record CambioEstadoView(
     String estadoAnterior,
     String estadoNuevo,
     String motivo,
+    String usuario,
     LocalDateTime fecha
 ) {}

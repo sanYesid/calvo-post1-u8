@@ -8,6 +8,7 @@ import com.example.auditoria.usecase.port.CambioEstadoView;
 import com.example.auditoria.usecase.port.DashboardAuditoriaView;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
@@ -51,22 +52,32 @@ public class HallazgoController {
     }
 
     @PatchMapping("/{id}/iniciar-remediacion")
-    public Map<String, String> iniciarRemediacion(@PathVariable String id,
-                                                  @RequestBody IniciarRemediacionRequest req) {
+    @Transactional
+    public Map<String, String> iniciarRemediacion(
+            @PathVariable String id,
+            @RequestBody IniciarRemediacionRequest req,
+            @RequestHeader(value = "X-Usuario", defaultValue = "sistema") String usuario) {
         iniciarRemediacionUseCase.ejecutar(
-                new HallazgoId(UUID.fromString(id)), req.responsable(), req.fechaLimite(), req.notas());
+                new HallazgoId(UUID.fromString(id)), req.responsable(), req.fechaLimite(), req.notas(), usuario);
         return Map.of("estado", "EN_REMEDIACION");
     }
 
     @PatchMapping("/{id}/cerrar")
-    public Map<String, String> cerrar(@PathVariable String id) {
-        cerrarUseCase.ejecutar(new HallazgoId(UUID.fromString(id)));
+    @Transactional
+    public Map<String, String> cerrar(
+            @PathVariable String id,
+            @RequestHeader(value = "X-Usuario", defaultValue = "sistema") String usuario) {
+        cerrarUseCase.ejecutar(new HallazgoId(UUID.fromString(id)), usuario);
         return Map.of("estado", "CERRADO");
     }
 
     @PatchMapping("/{id}/reabrir")
-    public Map<String, String> reabrir(@PathVariable String id, @RequestBody ReabrirRequest req) {
-        reabrirUseCase.ejecutar(new HallazgoId(UUID.fromString(id)), req.motivo());
+    @Transactional
+    public Map<String, String> reabrir(
+            @PathVariable String id,
+            @RequestBody ReabrirRequest req,
+            @RequestHeader(value = "X-Usuario", defaultValue = "sistema") String usuario) {
+        reabrirUseCase.ejecutar(new HallazgoId(UUID.fromString(id)), req.motivo(), usuario);
         return Map.of("estado", "REABIERTO");
     }
 

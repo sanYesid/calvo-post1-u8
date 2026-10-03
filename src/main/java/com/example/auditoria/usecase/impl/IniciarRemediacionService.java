@@ -22,12 +22,12 @@ public class IniciarRemediacionService implements IniciarRemediacionUseCase {
     }
 
     @Override
-    public void ejecutar(HallazgoId id, String responsable, LocalDate fechaLimite, String notas) {
-        HallazgoAuditoria hallazgo = repo.buscarPorId(id)
-                .orElseThrow(() -> new HallazgoNotFoundException(id));
-        
-        EstadoHallazgo anterior = hallazgo.iniciarRemediacion(new PlanRemediacion(responsable, fechaLimite, notas));
-        repo.guardar(hallazgo);
-        historial.registrar(id, anterior, EstadoHallazgo.EN_REMEDIACION, "Inicio de plan de remediación");
-    }
+        public void ejecutar(HallazgoId id, String responsable, LocalDate fechaLimite, String notas, String usuario) {
+                            HallazgoAuditoria hallazgo = repo.buscarPorId(id)
+                            .orElseThrow(() -> new HallazgoNotFoundException(id));
+
+            EstadoHallazgo anterior = hallazgo.iniciarRemediacion(new PlanRemediacion(responsable, fechaLimite, notas));
+            repo.guardar(hallazgo);
+            historial.registrar(id, anterior, EstadoHallazgo.EN_REMEDIACION, "Inicio de plan de remediación", usuario);
+}
 }
